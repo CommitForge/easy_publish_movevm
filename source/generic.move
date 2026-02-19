@@ -181,45 +181,44 @@ public struct DataItem has key, store {
     content: string::String,
     sequence_index: u128,
     external_index: u128,
-    references: vector<ID>,
-    // ✅ Verification tracking
+    reference: ID,
+
+    // Verification tracking
     verification_success_addresses: vector<address>,
     verification_failure_addresses: vector<address>,
-    verified: bool,              // flag set to true when enough successes
-    verification_success_data_item: vector<ID>,
-    verification_failure_data_item: vector<ID>,
+    verified: bool,
+
     prev_data_item_chain_id: Option<ID>,
     prev_id: Option<ID>,
     prev_data_type_item_id: Option<ID>,
-    
 }
 
 public struct DataItemVerification has key, store {
     id: UID,
+
     // Scope
     container_id: ID,
     data_item_id: ID,
+
     // External linkage
     external_id: string::String,
+
     // Creator
     creator: Creator,
-      recipients: vector<address>,
+    recipients: vector<address>,
+
     // Metadata
     name: string::String,
     description: string::String,
     content: string::String,
     sequence_index: u128,
     external_index: u128,
-  
-    // Targeting
-  
-references: vector<ID>,
+
+    // Target reference
+    reference: ID,
+
     // Verification result
     verified: bool,
-    verification_success: vector<ID>,
-    verification_failure: vector<ID>,
-
-   
 
     // Chain pointers
     prev_data_item_verification_chain_id: Option<ID>,
@@ -333,13 +332,12 @@ public struct DataItemPublishedEvent has copy, drop {
     content: string::String,
     sequence_index: u128,
     external_index: u128,
-    references: vector<ID>,
-    // ✅ Verification tracking
+    reference: ID,
+
     verification_success_addresses: vector<address>,
     verification_failure_addresses: vector<address>,
-    verified: bool,              // flag set to true when enough successes
-    verification_success_data_item: vector<ID>,
-    verification_failure_data_item: vector<ID>,
+    verified: bool,
+
     prev_data_item_chain_id: Option<ID>,
     prev_id: Option<ID>,
     prev_data_type_item_id: Option<ID>,
@@ -351,16 +349,14 @@ public struct DataItemVerificationPublishedEvent has copy, drop {
     data_item_id: ID,
     external_id: string::String,
     creator: CreatorEvent,
-        recipients: vector<address>,
+    recipients: vector<address>,
     name: string::String,
     description: string::String,
     content: string::String,
-        sequence_index: u128,
+    sequence_index: u128,
     external_index: u128,
-  references: vector<ID>,
-  verified: bool,
-    verification_success: Option<vector<ID>>,
-    verification_failure: Option<vector<ID>>,
+    reference: ID,
+    verified: bool,
     prev_data_item_verification_chain_id: Option<ID>,
     prev_id: Option<ID>,
 }
@@ -902,7 +898,7 @@ public entry fun publish_data_item(
     description: string::String,
     content: string::String,
     external_index: u128,
-    references: vector<ID>,
+    reference: ID,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
@@ -939,14 +935,12 @@ public entry fun publish_data_item(
         content: content,
         sequence_index: next_index,
         external_index: external_index,
-        references: references,
+        reference: reference,
         
         // verification fields
         verification_success_addresses: vector::empty<address>(),
         verification_failure_addresses: vector::empty<address>(),
         verified: false,
-        verification_success_data_item: vector::empty<ID>(),
-        verification_failure_data_item: vector::empty<ID>(),
 
         prev_data_item_chain_id: data_item_chain_id,
         prev_id: container.last_data_item_id,
@@ -985,12 +979,10 @@ public entry fun publish_data_item(
             content: data_item.content,
             sequence_index: data_item.sequence_index,
             external_index: data_item.external_index,
-            references: data_item.references,
+            reference: data_item.reference,
             verification_success_addresses: data_item.verification_success_addresses,
             verification_failure_addresses: data_item.verification_failure_addresses,
             verified: data_item.verified,
-            verification_success_data_item: data_item.verification_success_data_item,
-            verification_failure_data_item: data_item.verification_failure_data_item,
             prev_data_item_chain_id: data_item_chain_id,
             prev_id: data_item.prev_id,
             prev_data_type_item_id: data_item.prev_data_type_item_id,
@@ -999,6 +991,7 @@ public entry fun publish_data_item(
 
     transfer::share_object(data_item);
 }
+
 public entry fun publish_data_item_verification(
     update_chain: &mut UpdateChain,
     verification_chain: &mut DataItemVerificationChain,
@@ -1010,10 +1003,8 @@ public entry fun publish_data_item_verification(
     description: string::String,
     content: string::String,
     external_index: u128,
-    references: vector<ID>,
+    reference: ID,
     verified: bool,
-    verification_success: Option<vector<ID>>, // informational only
-    verification_failure: Option<vector<ID>>, // informational only
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
@@ -1034,6 +1025,8 @@ public entry fun publish_data_item_verification(
             vector::contains(rec, &sender_addr),
             E_INVALID_VERIFICATION_SENDER
         );
+    } else {
+        abort E_INVALID_VERIFICATION_SENDER
     };
 
     // --- no double submission ---
@@ -1047,26 +1040,12 @@ public entry fun publish_data_item_verification(
     let next_index =
         add_with_wrap(container.last_data_item_verification_index, 1);
 
-    // --- informational vectors (safe clones) ---
+    // --- informational recipients ---
     let info_recipients =
         if (option::is_some(&recipients)) {
             clone_vector_address(option::borrow(&recipients))
         } else {
             vector::empty<address>()
-        };
-
-    let info_success =
-        if (option::is_some(&verification_success)) {
-            clone_vector_id(option::borrow(&verification_success))
-        } else {
-            vector::empty<ID>()
-        };
-
-    let info_failure =
-        if (option::is_some(&verification_failure)) {
-            clone_vector_id(option::borrow(&verification_failure))
-        } else {
-            vector::empty<ID>()
         };
 
     let creator = Creator {
@@ -1089,12 +1068,10 @@ public entry fun publish_data_item_verification(
         content,
         sequence_index: next_index,
         external_index,
-        references,
+        reference,
         verified,
-        verification_success: info_success,
-        verification_failure: info_failure,
         prev_data_item_verification_chain_id:
-        verification_chain.last_data_item_verification_id,
+            verification_chain.last_data_item_verification_id,
         prev_id: container.last_data_item_verification_id,
     };
 
@@ -1114,19 +1091,13 @@ public entry fun publish_data_item_verification(
             &mut data_item.verification_success_addresses,
             sender_addr
         );
-             vector::push_back(
-            &mut data_item.verification_success_data_item,
-            verification_id
-        );
+      
     } else {
         vector::push_back(
             &mut data_item.verification_failure_addresses,
             sender_addr
         );
-            vector::push_back(
-            &mut data_item.verification_failure_data_item,
-            verification_id
-        );
+
     };
 
     // --- mark verified only if ALL recipients succeeded ---
@@ -1137,7 +1108,7 @@ public entry fun publish_data_item_verification(
             data_item.verified = true;
         };
     };
-    
+
     // --- event ---
     if (event_config_ref.event_publish) {
         let creator_event = CreatorEvent {
@@ -1159,11 +1130,7 @@ public entry fun publish_data_item_verification(
             content: verification.content,
             sequence_index: verification.sequence_index,
             external_index: verification.external_index,
-            references: verification.references,
-            verification_success:
-                option::some(clone_vector_id(&verification.verification_success)),
-            verification_failure:
-                option::some(clone_vector_id(&verification.verification_failure)),
+            reference: verification.reference,
             verified: verification.verified,
             prev_data_item_verification_chain_id:
                 verification.prev_data_item_verification_chain_id,
@@ -1198,7 +1165,6 @@ public entry fun publish_data_item_verification(
         ctx,
     );
 }
-
 
 // ==========================
 // CHILD CONTAINERS
@@ -2157,7 +2123,7 @@ fun clone_vector_address(src: &vector<address>): vector<address> {
     };
     out
 }
-
+/*
 fun clone_vector_id(src: &vector<ID>): vector<ID> {
     let mut out = vector::empty<ID>();
     let mut i = 0;
@@ -2168,7 +2134,7 @@ fun clone_vector_id(src: &vector<ID>): vector<ID> {
     };
     out
 }
-
+*/
 /*
 public fun option_vector_address_len(option_vector_address: &Option<vector<address>>): u64 {
     if (option::is_some(option_vector_address)) {
