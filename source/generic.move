@@ -185,8 +185,9 @@ public struct DataItem has key, store {
     // Verification tracking
     verification_success_addresses: vector<address>,
     verification_failure_addresses: vector<address>,
-    verified: bool,
-
+    verified: Option<bool>,
+verification_success_data_item: Option<ID>, 
+verification_failure_data_item: Option<ID>,
     prev_data_item_chain_id: Option<ID>,
     prev_id: Option<ID>,
     prev_data_type_item_id: Option<ID>,
@@ -939,8 +940,9 @@ public entry fun publish_data_item(
         // verification fields
         verification_success_addresses: vector::empty<address>(),
         verification_failure_addresses: vector::empty<address>(),
-        verified: false,
-
+        verified: option::none(),
+verification_success_data_item: option::none(), 
+verification_failure_data_item: option::none(),
         prev_data_item_chain_id: data_item_chain_id,
         prev_id: container.last_data_item_id,
         prev_data_type_item_id: data_type.last_data_item_id,
@@ -1084,20 +1086,14 @@ public entry fun publish_data_item_verification(
     container.last_data_item_verification_index = next_index;
     container.last_data_item_verification_id = verification_id_option;
 
-    // --- update data item state ---
-    if (verified) {
-        vector::push_back(
-            &mut data_item.verification_success_addresses,
-            sender_addr
-        );
-      
-    } else {
-        vector::push_back(
-            &mut data_item.verification_failure_addresses,
-            sender_addr
-        );
-
-    };
+// --- update data item state --- 
+ if (verified) { 
+    vector::push_back( &mut data_item.verification_success_addresses, sender_addr );
+     vector::push_back( &mut data_item.verification_success_data_item, verification_id ); }
+      else { 
+        vector::push_back( &mut data_item.verification_failure_addresses, sender_addr );
+         vector::push_back( &mut data_item.verification_failure_data_item, verification_id ); 
+         };
 
     // --- mark verified only if ALL recipients succeeded ---
     if (option::is_some(&data_item.recipients)) {
