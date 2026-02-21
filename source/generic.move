@@ -356,7 +356,7 @@ public struct DataItemVerificationPublishedEvent has copy, drop {
     sequence_index: u128,
     external_index: u128,
     reference: Option<ID>,
-    verified: bool,
+    verified: Option<bool>,
     prev_data_item_verification_chain_id: Option<ID>,
     prev_id: Option<ID>,
 }
@@ -1168,7 +1168,7 @@ if (!option::is_some(&data_item.verification_failure_data_item)) {
             sequence_index: verification.sequence_index,
             external_index: verification.external_index,
             reference: verification.reference,
-            verified: verification.verified,
+            verified: option::some(verification.verified),
             prev_data_item_verification_chain_id:
                 verification.prev_data_item_verification_chain_id,
             prev_id: verification.prev_id,
