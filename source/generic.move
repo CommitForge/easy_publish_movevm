@@ -21,7 +21,8 @@ const E_INVALID_CONTAINER: u64 = 1006;
 const E_INVALID_DATAITEM: u64 = 1007;
 const E_INVALID_VERIFICATION_SENDER: u64 = 1008;
 const E_VERIFICATION_ALREADY_SUBMITTED: u64 = 1009;
-
+const E_PARENT_MISMATCH: u64 = 1010;
+const E_CHILD_MISMATCH: u64 = 1011;
 
 // ==========================
 // CHAINS
@@ -1942,7 +1943,14 @@ public entry fun update_container_child_link(
     let container_parent_id = object::id(container_parent);
     let container_child_id = object::id(container_child);
     assert!(container_parent_id != container_child_id, E_INVALID_CONTAINER);
-
+assert!(
+    container_child_link.container_parent_id == container_parent_id,
+    E_PARENT_MISMATCH
+);
+assert!(
+    container_child_link.container_child_id == container_child_id,
+    E_CHILD_MISMATCH
+);
     let parent_permission_ref = &container_parent.permission;
     let child_permission_ref = &container_child.permission;
     assert_owner(container_parent, parent_permission_ref.public_attach_container_child, ctx);
