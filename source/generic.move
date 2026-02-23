@@ -241,6 +241,7 @@ public struct ContainerChildLink has key, store {
 
 public struct Owner has key, store {
     id: UID,
+    container_id: ID,
     creator: Creator,
     addr: address,
     role: string::String,
@@ -337,7 +338,8 @@ public struct DataItemPublishedEvent has copy, drop {
     verification_success_addresses: Option<vector<address>>,
     verification_failure_addresses: Option<vector<address>>,
     verified: Option<bool>,
-
+verification_success_data_item: Option<vector<ID>>, 
+verification_failure_data_item: Option<vector<ID>>,
     prev_data_item_chain_id: Option<ID>,
     prev_id: Option<ID>,
     prev_data_type_item_id: Option<ID>,
@@ -356,7 +358,7 @@ public struct DataItemVerificationPublishedEvent has copy, drop {
     sequence_index: u128,
     external_index: u128,
     reference: Option<ID>,
-    verified: Option<bool>,
+    verified: bool,
     prev_data_item_verification_chain_id: Option<ID>,
     prev_id: Option<ID>,
 }
@@ -577,19 +579,6 @@ public entry fun create_container(
         creator_update_timestamp_ms: option::none(),
     };
 
-    // Owner object
-    let owner = Owner {
-        id: object::new(ctx),
-        creator: creator_owner,
-        addr: creator_owner_addr,
-        role: string::utf8(b"creator"),
-        removed: false,
-        sequence_index: 1,
-        prev_id: option::none(),
-    };
-
-    let owner_id = object::id(&owner);
-
     // Container specification
     let specification = Specification {
         version: version,
@@ -627,7 +616,7 @@ public entry fun create_container(
     let mut container = Container {
         id: object::new(ctx),
         container_parent_id: option::none(),
-        owners: vector::singleton(owner),
+        owners: vector::empty<Owner>(),
         owners_active_count: 1,
         external_id: external_id,
         creator: creator_container,
@@ -645,7 +634,7 @@ public entry fun create_container(
         last_data_item_index: 0,
         last_data_item_verification_index: 0,
         last_update_record_index: 0,
-        last_owner_id: option::some(owner_id),
+        last_owner_id: option::none(),
         last_container_child_link_id: option::none(),
         last_data_type_id: option::none(),
         last_data_item_id: option::none(),
@@ -655,6 +644,22 @@ public entry fun create_container(
     };
 
     let container_id = object::id(&container);
+     // Owner object
+    let owner = Owner {
+        id: object::new(ctx),
+        container_id: container_id,
+        creator: creator_owner,
+        addr: creator_owner_addr,
+        role: string::utf8(b"creator"),
+        removed: false,
+        sequence_index: 1,
+        prev_id: option::none(),
+    };
+
+    let owner_id = object::id(&owner);
+
+    vector::push_back(&mut container.owners, owner);
+    container.last_owner_id = option::some(owner_id);
 
     // Update chain
     container_chain.last_container_index = add_with_wrap(container_chain.last_container_index, 1);
@@ -984,6 +989,8 @@ verification_failure_data_item: option::none(),
             verification_success_addresses: data_item.verification_success_addresses,
             verification_failure_addresses: data_item.verification_failure_addresses,
             verified: data_item.verified,
+            verification_success_data_item: data_item.verification_success_data_item, 
+verification_failure_data_item: data_item.verification_failure_data_item,
             prev_data_item_chain_id: data_item_chain_id,
             prev_id: data_item.prev_id,
             prev_data_type_item_id: data_item.prev_data_type_item_id,
@@ -1138,12 +1145,17 @@ if (!option::is_some(&data_item.verification_failure_data_item)) {
   if (option::is_some(&data_item.recipients)
     && option::is_some(&data_item.verification_success_addresses)) {
 
-    let required = vector::length(option::borrow(&data_item.recipients));
+    let required_addresses = vector::length(option::borrow(&data_item.recipients));
     let success_addresses = vector::length(option::borrow(&data_item.verification_success_addresses));
 
-    if (success_addresses >= required) {
+    if (success_addresses >= required_addresses) {
         data_item.verified = option::some(true);
-    };
+    } else {
+            let failure_addresses = vector::length(option::borrow(&data_item.verification_failure_addresses));
+if (failure_addresses > 0) {
+    data_item.verified = option::some(false);
+    }
+        };
 };
 
     // --- event ---
@@ -1168,7 +1180,7 @@ if (!option::is_some(&data_item.verification_failure_data_item)) {
             sequence_index: verification.sequence_index,
             external_index: verification.external_index,
             reference: verification.reference,
-            verified: option::some(verification.verified),
+            verified: verification.verified,
             prev_data_item_verification_chain_id:
                 verification.prev_data_item_verification_chain_id,
             prev_id: verification.prev_id,
@@ -1440,6 +1452,7 @@ public entry fun add_owner(
 
         let owner = Owner {
             id: object::new(ctx),
+            container_id: container_id,
             creator: creator,
             addr: new_owner,
             role: role,
