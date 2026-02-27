@@ -1113,23 +1113,27 @@ public entry fun publish_data_item_verification(
 
     let required_count = vector::length(required_recipients);
 
-    let success_count = if (option::is_some(&data_item.verification_success_addresses)) {
-        vector::length(option::borrow(&data_item.verification_success_addresses))
-    } else { 0 };
+    // Check failure first (only need to know if > 0)
+    let has_failure =
+        option::is_some(&data_item.verification_failure_addresses) &&
+        !vector::is_empty(option::borrow(&data_item.verification_failure_addresses));
 
-    let failure_count = if (option::is_some(&data_item.verification_failure_addresses)) {
-        vector::length(option::borrow(&data_item.verification_failure_addresses))
-    } else { 0 };
-
-    if (failure_count > 0) {
+    if (has_failure) {
         data_item.verified = option::some(false);
-    } else if (success_count >= required_count) {
-        data_item.verified = option::some(true);
     } else {
-        data_item.verified = option::none(); // explicitly pending
-    };
+        let success_count = if (option::is_some(&data_item.verification_success_addresses)) {
+            vector::length(option::borrow(&data_item.verification_success_addresses))
+        } else {
+            0
+        };
 
-    // --- event (FIXED recipients handling) ---
+        if (success_count >= required_count) {
+            data_item.verified = option::some(true);
+        } else {
+            data_item.verified = option::none();
+        };
+    };
+    
     if (event_config_ref.event_publish) {
         let creator_event = CreatorEvent {
             creator_addr: sender_addr,
