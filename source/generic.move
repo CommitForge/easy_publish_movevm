@@ -8,6 +8,7 @@ use std::string;
 // ==========================
 // CONSTANTS
 // ==========================
+const MODULE_VERSION: u32 = 1; 
 /// true max 340282366920938463463374607431768211455
 const MAX_u128: u128 = 340282366920938463463374607431768211450;
 // error constants
@@ -53,7 +54,17 @@ public struct DataItemVerificationChain has key, store {
     last_data_item_verification_id: Option<ID>,
 }
 
+public struct ChainInit has  key, store {
+    id: UID,
+    module_version: u32,
+    container_chain_id: ID,
+    update_chain_id: ID,
+    data_item_chain_id: ID,
+    data_item_verification_chain_id: ID,
+}
+
 public struct ChainInitEvent has copy, drop {
+    module_version: u32,
     container_chain_id: ID,
     update_chain_id: ID,
     data_item_chain_id: ID,
@@ -512,7 +523,17 @@ fun init(ctx: &mut TxContext) {
     let data_item_verification_id = object::id(&data_item_verification_chain);
     transfer::share_object(data_item_verification_chain);
 
+    transfer::share_object(ChainInit{
+        id: object::new(ctx),
+        module_version: MODULE_VERSION,
+        container_chain_id: container_id,
+        update_chain_id: update_id,
+        data_item_chain_id: data_item_id,
+        data_item_verification_chain_id: data_item_verification_id,
+    });
+
     event::emit(ChainInitEvent {
+        module_version: MODULE_VERSION,
         container_chain_id: container_id,
         update_chain_id: update_id,
         data_item_chain_id: data_item_id,
