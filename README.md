@@ -1,6 +1,6 @@
 # Easy Publish - Decentralized Content & Ownership Management
 
-SendIt Messenger is a decentralized content and ownership management system with full auditability. It allows multiple users to collaborate, track, and manage structured content in a permissioned and verifiable way.
+Easy Publish is a decentralized content and ownership management system with full auditability. It allows multiple users to collaborate, track, and manage structured content in a permissioned and verifiable way.
 
 ---
 
@@ -70,18 +70,18 @@ This system enables decentralized, permissioned content management with traceabl
 
 ---
 
-## Why SendIt Messenger is Powerful
+## Why Easy Publish is Powerful
 
 1. **Ownership Tracking** – Safely add or remove users with a full audit trail.  
 2. **Event-Driven** – Full snapshot events ensure reliable, verifiable history.  
 3. **Modular** – Structured hierarchy: Containers → DataTypes → DataItems.  
 4. **Decentralized & Permissioned** – Fits Web3 and compliance-focused applications.  
 
-> The core value of SendIt Messenger is trust, auditability, and structured ownership in a decentralized system.
+> The core value of Easy Publish is trust, auditability, and structured ownership in a decentralized system.
 
 ---
 
 ## Summary
 
-SendIt Messenger provides a flexible, secure, and auditable platform for any scenario where multiple users need controlled access to structured content. Whether for knowledge management, digital assets, decentralized publishing, IoT logs, or DAO governance, it ensures transparency, traceability, and accountability.
+Easy Publish provides a flexible, secure, and auditable platform for any scenario where multiple users need controlled access to structured content. Whether for knowledge management, digital assets, decentralized publishing, IoT logs, or DAO governance, it ensures transparency, traceability, and accountability.
 
