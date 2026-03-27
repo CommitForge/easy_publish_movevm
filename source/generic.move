@@ -8,7 +8,7 @@ use std::string;
 // ==========================
 // CONSTANTS
 // ==========================
-const MODULE_VERSION: u32 = 1; 
+const MODULE_VERSION: u32 = 2; 
 /// true max 340282366920938463463374607431768211455
 const MAX_u128: u128 = 340282366920938463463374607431768211450;
 // error constants
@@ -2048,6 +2048,47 @@ public entry fun update_container_owners_active_count(
         container_id,
         creator_update.creator_addr,
         creator_update.creator_timestamp_ms,
+        string::utf8(b"container"),
+        2,
+        ctx,
+    );
+}
+
+public entry fun update_container_owners_active_count_v2(
+    update_chain: &mut UpdateChain,
+    container: &mut Container,
+    clock: &Clock,
+    ctx: &mut TxContext,
+) {
+    let container_id = object::id(container);
+    let permission_ref = &container.permission;
+    assert_owner(container, permission_ref.public_update_container, ctx);
+
+    let len = vector::length(&container.owners);
+    let mut i = 0;
+    let mut active: u32 = 0;
+    while (i < len) {
+        let owner = vector::borrow(&container.owners, i);
+        if (!owner.removed) {
+            active = active + 1;
+        };
+        i = i + 1;
+    };
+
+    assert!(active > 0, E_NO_ACTIVE_OWNERS);
+
+    container.owners_active_count = active;
+
+    let caller_addr = sender(ctx);
+    let timestamp_ms = clock.timestamp_ms();
+
+    create_update_record(
+        update_chain,
+        container,
+        container_id,
+        container_id,
+        caller_addr,
+        timestamp_ms,
         string::utf8(b"container"),
         2,
         ctx,
