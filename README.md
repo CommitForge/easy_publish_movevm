@@ -1,87 +1,249 @@
-# Easy Publish - Decentralized Content & Ownership Management
+# easy_publish README (Based On Tag `v1`)
 
-Easy Publish is a decentralized content and ownership management system with full auditability. It allows multiple users to collaborate, track, and manage structured content in a permissioned and verifiable way.
+This README is intentionally based on **tag `v1`** source:
 
----
+- Tag: `v1`
+- Source file: `source/generic.move`
+- Module: `sendit_messenger::generic_store`
+- `MODULE_VERSION`: `1`
 
-## Core Concepts
+## Version Scope
 
-- **Containers** – Folders or collections of content.  
-- **Owners** – Users with specific roles and permissions, can be added/removed.  
-- **DataTypes** – Schemas defining types of content (e.g., articles, images, reports).  
-- **DataItems** – The actual content objects.  
-- **Events** – Full snapshots of actions for immutable audit and history tracking.
+- Main documentation below describes **v1 behavior**.
+- A short **v2** delta is provided near the end.
+- **v1 is currently the main version to use**.
 
-This system enables decentralized, permissioned content management with traceable history for every operation.
+## Current Deployment Addresses
 
----
+- Smart Contract: `0xb0927f142487c66708ec3cf978dbe45da94ccede7944de7a13889efa01f7dc67` (Explorer)
+- Container Chain: `0xc225e0fc9f648d95e90e8b0bbb0aecf4122c90f7c8e9f137b64603685a796266` (Explorer)
+- Update Chain: `0x6c5215f9827413e25fad5f746e01c50e523caf704d65d4c7db35ddd38a8de30b` (Explorer)
+- Data Item Chain: `0x21e241879bc5dad7046d742e06f60ccd8e2b66b5609a48d8d25714e4253166f2` (Explorer)
+- Data Item Verification Chain: `0x1cfbe6f207b6f3851ac37d879a47f6a3262514d4b809c5f15cc971c62e2929b9` (Explorer)
 
-## Use Cases
+## What The v1 Module Stores
 
-### 1. Collaborative Knowledge Base
-- Each container represents a topic or project.  
-- Owners manage who can contribute or update content.  
-- DataTypes define content formats like "article" or "image."  
-- DataItems store the actual knowledge pieces.  
-- Events provide a **verifiable history** of changes.  
+### Global chain objects (created in `init`)
 
-> Replace centralized wikis with a decentralized, auditable system.
+- `ContainerChain`: latest global container id/index
+- `UpdateChain`: latest global update-record id/index
+- `DataItemChain`: latest global data-item id/index
+- `DataItemVerificationChain`: latest global verification id/index
+- `ChainInit`: shared object with module version and chain IDs
+- `ChainInitEvent`: emitted on initialization
 
----
+### Core objects
 
-### 2. Digital Asset Management
-- Containers hold collections of digital assets (photos, videos, NFTs).  
-- Owners represent multiple parties with access rights.  
-- DataItems store assets or metadata.  
-- Events create an **immutable audit trail** for compliance or royalty tracking.  
+- `Container`
+  - parent linkage (`container_parent_id`)
+  - owner list (`owners`) and active owner counter (`owners_active_count`)
+  - metadata (`external_id`, `name`, `description`, `content`)
+  - `Specification` (`version`, `schemas`, `apis`, `resources`)
+  - permissions (`ContainerPermission`)
+  - event toggles (`ContainerEventConfig`)
+  - per-container counters and linked-list pointers
+- `DataType`
+- `DataItem`
+  - optional recipients and references
+  - verification state fields (`verified`, success/failure vectors)
+- `DataItemVerification`
+- `ContainerChildLink`
+- `Owner` (`removed` is soft-delete)
 
-> Perfect for collaborative asset management where ownership is critical.
+### Update and audit objects
 
----
+- `UpdateChainRecord` (global feed, `action`: `1=create`, `2=update`)
+- `UpdateContainerRecord` (per-container feed)
+- Snapshot audit objects:
+  - `ContainerAudit`
+  - `DataTypeAudit`
+  - `ContainerChildLinkAudit`
+  - `OwnerAudit`
 
-### 3. Decentralized Publishing & Versioning
-- Containers = publication projects.  
-- DataTypes = article templates or content formats.  
-- DataItems = versions of content.  
-- Event history ensures **verifiable version control**.  
+## Permissions Model
 
-> Ideal for collaborative papers, research projects, or decentralized blogs.
+Authorization helper: `assert_owner(container, asserted, ctx)`
 
----
+- If `asserted == true`: operation is effectively public.
+- If `asserted == false`: caller must be an active owner.
 
-### 4. Permissioned IoT or Supply Chain Data
-- Containers = supply chain stages or IoT hubs.  
-- Owners = authorized operators.  
-- DataTypes = sensor reading or document types.  
-- DataItems = actual logs or sensor readings.  
-- Events provide a **compliance-ready audit trail**.  
+Permission flags on container:
 
-> Ensures accountability and trust in decentralized operations.
+- `public_update_container`
+- `public_attach_container_child`
+- `public_create_data_type`
+- `public_publish_data_item`
 
----
+## Event Model
 
-### 5. DAO or Multi-Signature Governance
-- Containers = DAO projects or funds.  
-- Owners = members with voting/approval rights.  
-- DataItems = proposals, votes, or transactions.  
-- Events maintain **immutable decision and ownership history**.  
+Container-level event toggles:
 
-> Decentralized governance with verifiable actions.
+- `event_create`
+- `event_publish`
+- `event_attach`
+- `event_add`
+- `event_remove`
+- `event_update`
 
----
+If toggle is false, mutation still happens, but event is not emitted.
 
-## Why Easy Publish is Powerful
+## v1 Entry Functions
 
-1. **Ownership Tracking** – Safely add or remove users with a full audit trail.  
-2. **Event-Driven** – Full snapshot events ensure reliable, verifiable history.  
-3. **Modular** – Structured hierarchy: Containers → DataTypes → DataItems.  
-4. **Decentralized & Permissioned** – Fits Web3 and compliance-focused applications.  
+### `create_container(...)`
 
-> The core value of Easy Publish is trust, auditability, and structured ownership in a decentralized system.
+- Creates container and first owner (`role="creator"`)
+- Updates `ContainerChain`
+- Emits `ContainerCreatedEvent` when `event_create`
+- Emits `OwnerAddedEvent` when `event_add`
+- Appends update records for container creation
 
----
+### `create_data_type(...)`
 
-## Summary
+- Requires owner unless `public_create_data_type`
+- Validates/uses target container
+- Updates container data-type pointers/counter
+- Emits `DataTypeCreatedEvent` when `event_create`
+- Appends update records
 
-Easy Publish provides a flexible, secure, and auditable platform for any scenario where multiple users need controlled access to structured content. Whether for knowledge management, digital assets, decentralized publishing, IoT logs, or DAO governance, it ensures transparency, traceability, and accountability.
+### `publish_data_item(...)`
 
+- Requires owner unless `public_publish_data_item`
+- Validates data type belongs to container
+- Validates no duplicate recipients/references
+- Updates global `DataItemChain`, container pointers, and data-type pointer
+- Emits `DataItemPublishedEvent` when `event_publish`
+
+### `publish_data_item_verification(...)`
+
+- Requires owner unless `public_publish_data_item`
+- Caller must be one of `data_item.recipients`
+- Prevents double verification per recipient address
+- Updates `DataItemVerificationChain` and container verification pointers
+- Updates `DataItem.verified` state machine:
+  - any failure -> `Some(false)`
+  - all required successes and no failures -> `Some(true)`
+  - otherwise -> `None`
+- Emits `DataItemVerificationPublishedEvent` when `event_publish`
+- Appends update records for verification and data item
+
+### `attach_container_child(...)`
+
+- Parent and child both pass owner/public attach checks
+- Validates parent!=child and child not already attached
+- Sets `container_child.container_parent_id`
+- Creates `ContainerChildLink`
+- Emits `ContainerChildLinkAttachedEvent` when parent `event_attach`
+- Appends update records
+
+### `add_owner(...)`
+
+- Requires owner unless `public_update_container`
+- Existing owner path: writes `OwnerAudit`, updates/reactivates owner
+- New owner path: appends owner object and increments active counter
+- Emits `OwnerAddedEvent` based on path + `event_add`
+- Appends update records for owner and container
+
+### `remove_owner(...)`
+
+- Requires owner unless `public_update_container`
+- Prevents removing last active owner
+- Prevents self-removal
+- Soft-removes owner and decrements active counter
+- Writes `OwnerAudit`
+- Emits `OwnerRemovedEvent` when `event_remove`
+- Appends update records for owner and container
+
+### `update_container(...)`
+
+- Requires owner unless `public_update_container`
+- Writes `ContainerAudit` snapshot
+- Updates container metadata/spec
+- Emits `ContainerUpdatedEvent` when `event_update`
+- Appends update records
+
+### `update_data_type(...)`
+
+- Requires owner unless `public_create_data_type`
+- Validates container/data-type relation
+- Writes `DataTypeAudit` snapshot
+- Updates metadata/spec
+- Emits `DataTypeUpdatedEvent` when `event_update`
+- Appends update records
+
+### `update_container_child_link(...)`
+
+- Validates parent/child relation for link object
+- Parent+child owner/public checks
+- Writes `ContainerChildLinkAudit` snapshot
+- Updates metadata
+- Emits `ContainerLinkUpdatedEvent` when parent `event_update`
+- Appends update records
+
+### `update_container_owners_active_count(...)` (v1)
+
+- Requires owner unless `public_update_container`
+- Recomputes `owners_active_count` from owner vector
+- Requires at least one active owner
+- Appends update record for container
+
+## Error Codes
+
+- `1000 E_NOT_OWNER`
+- `1001 E_INVALID_DATATYPE`
+- `1002 E_CANNOT_REMOVE_LAST_OWNER`
+- `1003 E_CANNOT_REMOVE_SELF`
+- `1004 E_OWNER_NOT_FOUND`
+- `1005 E_NO_ACTIVE_OWNERS`
+- `1006 E_INVALID_CONTAINER`
+- `1007 E_INVALID_VERIFICATION_SENDER`
+- `1008 E_VERIFICATION_ALREADY_SUBMITTED`
+- `1009 E_PARENT_MISMATCH`
+- `1010 E_CHILD_MISMATCH`
+- `1011 E_DUPLICATE_RECIPIENT`
+- `1012 E_DUPLICATE_REFERENCE`
+
+## v2 (Tiny Section)
+
+Tag `v2` keeps almost all logic, with these key deltas:
+
+- module renamed to `easy_publish::easy_publish`
+- source path moved to `sources/easy_publish.move`
+- `MODULE_VERSION` changed to `2`
+- `update_container_owners_active_count(...)` is deprecated and now aborts (`E_DEPRECATED_FUNCTION = 2000`)
+- new `update_container_owners_active_count_v2(...)` takes `clock: &Clock` and records updater metadata from caller + current timestamp
+- `Move.toml` was added to repository in v2 (v1 did not include it in GitHub, although deployment used a package config)
+
+## Release Notes / Historical Notes
+
+- Deployment note: v1 runtime/deployment module naming is treated as `easy_publish::easy_publish`.
+- Repository history note: tag `v1` source file still shows older namespace/module naming (`sendit_messenger::generic_store`) in `source/generic.move`.
+
+## Future Upgrades (v3+)
+
+- Planned approach: deploy a **new smart contract** for each major upgrade instead of trying to update existing on-chain code.
+- Reason: updates create a new contract address, so in-place update flow is not useful for this project strategy.
+- Method naming plan: bring `update_container_owners_active_count_v2(...)` back to canonical name `update_container_owners_active_count(...)` in v3+.
+
+## Bug Section
+
+- **Counter owners API (v1): wrong update metadata source**
+  - In `update_container_owners_active_count(...)`, the update record is written using `container.creator.creator_addr` and `container.creator.creator_timestamp_ms`.
+  - That means the record can attribute the recomputation to original container creator metadata instead of the current caller/time.
+
+## Possible Stuff To Review (Not Confirmed)
+
+- **Sequence counting source for verification chain**
+  - `publish_data_item_verification` computes `next_index` from `container.last_data_item_verification_index`, then sets global `verification_chain.last_data_item_verification_index` to that value.
+  - Worth reviewing if global counter should derive strictly from chain state.
+
+- **`publish_data_item` does not create update records**
+  - Most mutating entry functions call `create_update_record`, but `publish_data_item` does not.
+  - Could be intentional, but worth verifying for audit consistency.
+
+- **Container-child attach also sets child `sequence_index`**
+  - `attach_container_child` sets `container_child.sequence_index` to parent child-link counter.
+  - Might be intended, but worth validating if child container sequence should stay independent.
+
+- **Counter wrap behavior**
+  - `add_with_wrap` returns `1` on overflow (never `0`).
+  - This is deterministic and valid, but indexers should account for wrap-to-1 semantics.
