@@ -217,6 +217,7 @@ Tag `v2` keeps almost all logic, with these key deltas:
 
 - Deployment note: v1 runtime/deployment module naming is treated as `easy_publish::easy_publish`.
 - Repository history note: tag `v1` source file still shows older namespace/module naming (`sendit_messenger::generic_store`) in `source/generic.move`.
+- Historical naming note: source file has also been named `easy_publish.move` in project history/releases.
 
 ## Future Upgrades (v3+)
 
